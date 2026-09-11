@@ -1,0 +1,30 @@
+/target/
+/AI_CLI_TEMP/
+/CONFIG/
+/TEMP/
+/BACKUP/
+/PROJECT_MEMORY.md
+/AGENTS.md
+/FlashLaunch-*.zip
+/SHA256SUMS.txt
+/.claude/
+/crash.log
+/FlashLaunch.exe
+/Flash Launch.exe
+/Flash Launch x86.exe
+/*.pdb
+/*.ilk
+/*.obj
+__pycache__/
+*.pyc
+.env
+.env.*
+deploy.ini
+*.pem
+*.key
+*.pfx
+*.p12
+/README.md
+/publish-github.bat
+/Pics/
+/Assets/Flash Launch.png

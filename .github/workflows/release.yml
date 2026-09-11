@@ -1,0 +1,64 @@
+name: Windows releases
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Semantic version (x.y.z)'
+        required: true
+        default: '1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      CI: '1'
+      NO_RESTART: '1'
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install Rust targets
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc,i686-pc-windows-msvc
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Validate release version
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+        run: |
+          $version = $env:RELEASE_VERSION -replace '^v', ''
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid release version.' }
+          $manifest = Get-Content Cargo.toml -Raw
+          if ($manifest -notmatch ('(?m)^version = "' + [regex]::Escape($version) + '"\r?$')) {
+            throw 'Release version must match Cargo.toml.'
+          }
+          "VERSION=$version" >> $env:GITHUB_ENV
+
+      - name: Build x64 and x86 packages
+        shell: cmd
+        run: call build-release.bat --version %VERSION%
+
+      - name: Create GitHub release with both architectures
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.ref_name }}
+          name: Flash Launch ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            FlashLaunch-*-windows-x64.zip
+            FlashLaunch-*-windows-x86.zip
