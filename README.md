@@ -12,6 +12,15 @@ The release is for Windows. No Rust or Python installation is required to run it
 
 Open Settings from the notification-area icon to configure search folders, language, hotkey, and ranking. Click **Save + Apply** to save changes. If your keyboard has no Pause key, use the notification-area icon to open Settings and choose another shortcut.
 
+## Screenshots
+
+<p>
+  <a href="Screenshots/search-results.png"><img src="Screenshots/search-results.png" alt="Search results" width="24%"></a>
+  <a href="Screenshots/search-folders-settings.png"><img src="Screenshots/search-folders-settings.png" alt="Search folders settings" width="24%"></a>
+  <a href="Screenshots/heuristic-scoring-settings.png"><img src="Screenshots/heuristic-scoring-settings.png" alt="Heuristic scoring settings" width="24%"></a>
+  <a href="Screenshots/pattern-scoring-settings.png"><img src="Screenshots/pattern-scoring-settings.png" alt="Pattern scoring settings" width="24%"></a>
+</p>
+
 # Flash Launch
 
 A lightweight, keyboard-first application launcher for Windows, built with Rust and the native Windows API.
