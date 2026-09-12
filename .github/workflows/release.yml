@@ -63,7 +63,11 @@ jobs:
             })
           }
           Add-Type -AssemblyName System.IO.Compression.FileSystem
-          foreach ($archivePath in @('FlashLaunch-' + $env:VERSION + '-windows-x64.zip', 'FlashLaunch-' + $env:VERSION + '-windows-x86.zip')) {
+          $archivePaths = @(
+            'FlashLaunch-' + $env:VERSION + '-windows-x64.zip'
+            'FlashLaunch-' + $env:VERSION + '-windows-x86.zip'
+          )
+          foreach ($archivePath in $archivePaths) {
             $archive = [System.IO.Compression.ZipFile]::OpenRead((Join-Path $PWD $archivePath))
             try {
               $actual = @($archive.Entries | ForEach-Object { $_.FullName })
