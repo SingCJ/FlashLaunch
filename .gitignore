@@ -24,7 +24,5 @@ deploy.ini
 *.key
 *.pfx
 *.p12
-/README.md
 /publish-github.bat
-/Pics/
-/Assets/Flash Launch.png
+/publish-github.py

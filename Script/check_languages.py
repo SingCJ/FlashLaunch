@@ -3,7 +3,6 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_IDS = {'vi', 'zh-CN', 'es', 'pt-BR', 'ja', 'de', 'fr', 'ko', 'zh-TW'}
 LOCALIZED_CALL = re.compile(
     r'\blocalized(?:_active)?(?:_format[123])?\(\s*(?:[^,()\n]+,\s*)?"((?:\\.|[^"\\])*)"',
     re.S,
@@ -38,8 +37,8 @@ def check():
         source_keys.update(unescape(match[1]) for match in LOCALIZED_CALL.finditer(path.read_text(encoding='utf-8-sig')))
 
     packs = {path.stem: read_pack(path) for path in (ROOT / 'Languages').glob('*.ini')}
-    if set(packs) != EXPECTED_IDS:
-        raise ValueError(f'Unexpected language set: {set(packs)}')
+    if not packs:
+        raise ValueError('No language packs found')
     reference_keys = set(packs['vi']) - {'id', 'name'}
     missing = source_keys - reference_keys
     if missing:

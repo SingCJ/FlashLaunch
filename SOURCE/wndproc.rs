@@ -1023,6 +1023,22 @@ pub(crate) unsafe extern "system" fn config_window_proc(
             }
             0
         }
+        WM_FORCE_SHUTDOWN => {
+            let (inline_edit_hwnd, add_index_hwnd) = with_app(|app| {
+                (app.inline_edit_hwnd, app.add_index_hwnd)
+            })
+            .unwrap_or((null_mut(), null_mut()));
+            unsafe {
+                if !inline_edit_hwnd.is_null() {
+                    DestroyWindow(inline_edit_hwnd);
+                }
+                if !add_index_hwnd.is_null() {
+                    DestroyWindow(add_index_hwnd);
+                }
+                DestroyWindow(hwnd);
+            }
+            0
+        }
         WM_SIZE => {
             with_app(|app| unsafe { app.resize_config_controls() });
             0

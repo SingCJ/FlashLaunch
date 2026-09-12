@@ -4,7 +4,7 @@ use std::os::windows::ffi::OsStringExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::ptr::{null, null_mut};
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -242,6 +242,8 @@ fn result_text_left(
         76 + index_extra_width
     }
 }
+
+pub(crate) static FLASH_LAUNCH_SHUTDOWN_REQUESTED: AtomicBool = AtomicBool::new(false);
 
 fn launch_settings_process(page: Option<SettingsPage>) -> std::io::Result<()> {
     let executable = std::env::current_exe()?;
@@ -3218,6 +3220,9 @@ Reason:
     fn enqueue_settings_process(&self, page: Option<SettingsPage>) {
         if let Some(worker) = &self.save_worker {
             worker.run_task(move || {
+                if FLASH_LAUNCH_SHUTDOWN_REQUESTED.load(Ordering::Acquire) {
+                    return;
+                }
                 let _ = launch_settings_process(page);
             });
         }

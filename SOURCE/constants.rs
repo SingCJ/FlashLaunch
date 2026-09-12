@@ -55,6 +55,7 @@ pub(crate) const WM_HELPER_STATUS_READY: u32 = WM_APP + 15;
 pub(crate) const WM_FILE_TASK_READY: u32 = WM_APP + 16;
 pub(crate) const WM_CONFIG_RELOAD_READY: u32 = WM_APP + 17;
 pub(crate) const WM_CONFIG_SAVE_READY: u32 = WM_APP + 18;
+pub(crate) const WM_FORCE_SHUTDOWN: u32 = WM_APP + 19;
 pub(crate) const TITLE_TIMER_ID: usize = 1;
 pub(crate) const TITLE_TIMER_MS: u32 = 1_000;
 pub(crate) const SEARCH_REFRESH_TIMER_ID: usize = 2;
