@@ -45,18 +45,27 @@ The main goal is simple: **use little system resources and launch things quickly
 
 ## Languages
 
-English is built in. Nine additional language packs are included:
+English is built in. Additional language packs are included:
 
 | Language | Pack |
 | --- | --- |
+| Czech | `cs.ini` |
+| German | `de.ini` |
+| Spanish | `es.ini` |
+| French | `fr.ini` |
+| Indonesian | `id.ini` |
+| Italian | `it.ini` |
+| Japanese | `ja.ini` |
+| Korean | `ko.ini` |
+| Dutch | `nl.ini` |
+| Polish | `pl.ini` |
+| Brazilian Portuguese | `pt-BR.ini` |
+| Russian | `ru.ini` |
+| Thai | `th.ini` |
+| Turkish | `tr.ini` |
+| Ukrainian | `uk.ini` |
 | Vietnamese | `vi.ini` |
 | Simplified Chinese | `zh-CN.ini` |
-| Spanish | `es.ini` |
-| Brazilian Portuguese | `pt-BR.ini` |
-| Japanese | `ja.ini` |
-| German | `de.ini` |
-| French | `fr.ini` |
-| Korean | `ko.ini` |
 | Traditional Chinese | `zh-TW.ini` |
 
 Select a language in Settings and click **Save + Apply**. Language files are loaded from `Languages` when the app starts; restart after adding or editing a pack. Missing translations fall back to English.
@@ -67,6 +76,6 @@ To contribute a language, copy an existing `.ini` file, set a unique `id` and na
 
 ## Local data
 
-Settings and launch history are kept in `CONFIG` beside the executable. Language packs are in `Languages`. The application icon and popup sound are in `Assets` (`Flash Launch.ico` and `fping.wav`); diagnostic and temporary files may also be created within the application folder. Use a writable location rather than a protected system directory.
+Settings and launch history are kept in `CONFIG` beside the executable. Language packs are in `Languages`. The application resources are in `Assets` (`Flash Launch.ico`, `Flash Launch.png`, and `fping.wav`); diagnostic and temporary files may also be created within the application folder. Use a writable location rather than a protected system directory.
 
-Release archives contain only the executable, language packs, and the approved icon and sound in `Assets`. They do not include the author's settings, search folders, launch history, or crash logs. Back up your own `CONFIG` folder before replacing an existing installation.
+Release archives contain the executable and every file in the `Assets` and `Languages` folders. They do not include the author's settings, search folders, launch history, or crash logs. Back up your own `CONFIG` folder before replacing an existing installation.

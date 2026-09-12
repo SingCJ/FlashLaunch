@@ -5,7 +5,7 @@ import tempfile
 import unittest
 import zipfile
 
-from package_release import ROOT, FILES, checked_path, package
+from package_release import FILES, ROOT, checked_path, package, release_files
 
 
 class ReleasePackagingTests(unittest.TestCase):
@@ -21,17 +21,31 @@ class ReleasePackagingTests(unittest.TestCase):
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(ROOT / name, destination)
 
-    def test_package_is_allowlisted_and_hashes_match(self):
+    def test_package_contains_complete_resource_folders(self):
         (self.root / 'CONFIG').mkdir()
         (self.root / 'CONFIG' / 'private.ini').write_text('personal data')
         (self.root / 'Assets' / 'private.txt').write_text('must not ship')
         archive_path = package(self.root)
         self.assertEqual(archive_path.name, 'FlashLaunch-7.8.9-windows-x64.zip')
         with zipfile.ZipFile(archive_path) as archive:
-            self.assertEqual(set(archive.namelist()), set(FILES))
+            self.assertEqual(set(archive.namelist()), set(release_files(self.root)))
             self.assertIn('Assets/fping.wav', archive.namelist())
             self.assertIn('Assets/Flash Launch.ico', archive.namelist())
+            self.assertIn('Assets/Flash Launch.png', archive.namelist())
+            self.assertIn('Assets/private.txt', archive.namelist())
         self.assertFalse((self.root / 'AI_CLI_TEMP').exists())
+
+    def test_new_resource_files_are_shipped_automatically(self):
+        extra_asset = self.root / 'Assets' / 'new-resource.dat'
+        extra_language = self.root / 'Languages' / 'custom.ini'
+        extra_asset.write_bytes(b'new asset')
+        extra_language.write_text('id=custom\nname=Custom\n', encoding='utf-8')
+
+        archive_path = package(self.root)
+
+        with zipfile.ZipFile(archive_path) as archive:
+            self.assertIn('Assets/new-resource.dat', archive.namelist())
+            self.assertIn('Languages/custom.ini', archive.namelist())
 
     def test_missing_sound_does_not_replace_previous_package(self):
         previous = self.root / 'FlashLaunch-7.8.9-windows-x64.zip'
@@ -57,7 +71,7 @@ class ReleasePackagingTests(unittest.TestCase):
 
         self.assertEqual(archive_path.name, 'FlashLaunch-7.8.9-windows-x86.zip')
         with zipfile.ZipFile(archive_path) as archive:
-            self.assertEqual(set(archive.namelist()), set(FILES))
+            self.assertEqual(set(archive.namelist()), set(release_files(self.root)))
             self.assertEqual(archive.read('Flash Launch.exe'), source)
 
     def test_escape_is_rejected(self):

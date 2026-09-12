@@ -1,4 +1,4 @@
-"""Create a verified, allowlisted release archive without uploading anything."""
+"""Create a verified release archive containing the complete resource folders."""
 import os
 from pathlib import Path
 import re
@@ -6,10 +6,8 @@ import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-LANGUAGES = ('vi', 'zh-CN', 'es', 'pt-BR', 'ja', 'de', 'fr', 'ko', 'zh-TW')
-FILES = ('Flash Launch.exe', 'Assets/Flash Launch.ico', 'Assets/fping.wav') + tuple(
-    f'Languages/{language}.ini' for language in LANGUAGES
-)
+RESOURCE_DIRECTORIES = ('Assets', 'Languages')
+REQUIRED_FILES = ('Assets/Flash Launch.ico', 'Assets/fping.wav')
 
 
 def checked_path(root, relative):
@@ -24,8 +22,35 @@ def checked_path(root, relative):
     return path
 
 
+def release_files(root=ROOT):
+    """Return every regular file shipped from Assets and Languages."""
+    root = Path(root).resolve()
+    files = ['Flash Launch.exe']
+    for directory in RESOURCE_DIRECTORIES:
+        resource_root = checked_path(root, directory)
+        if not resource_root.is_dir():
+            raise ValueError(f'Required release directory missing: {directory}')
+        for path in resource_root.rglob('*'):
+            relative = path.relative_to(root).as_posix()
+            checked_path(root, relative)
+            if path.is_symlink() or getattr(path.stat(), 'st_file_attributes', 0) & 0x400:
+                raise ValueError(f'Reparse points are not allowed: {relative}')
+            if path.is_file():
+                files.append(relative)
+    return tuple(files[:1] + sorted(files[1:]))
+
+
+FILES = release_files(ROOT)
+ASSETS = tuple(name.removeprefix('Assets/') for name in FILES if name.startswith('Assets/'))
+LANGUAGES = tuple(
+    name.removeprefix('Languages/').removesuffix('.ini')
+    for name in FILES
+    if name.startswith('Languages/') and name.endswith('.ini')
+)
+
+
 def package(root=ROOT, architecture='x64', executable=None, output_dir=None):
-    root = root.resolve()
+    root = Path(root).resolve()
     manifest = checked_path(root, 'Cargo.toml').read_text(encoding='utf-8-sig')
     match = re.search(r'(?m)^version\s*=\s*"(\d+\.\d+\.\d+)"\s*$', manifest)
     if not match:
@@ -36,7 +61,11 @@ def package(root=ROOT, architecture='x64', executable=None, output_dir=None):
     executable_path = Path(executable).resolve() if executable else checked_path(root, 'Flash Launch.exe')
     if not executable_path.is_file():
         raise ValueError(f'Required release file missing: {executable_path.name}')
-    paths = [(name, executable_path if name == 'Flash Launch.exe' else checked_path(root, name)) for name in FILES]
+    files = release_files(root)
+    for required in REQUIRED_FILES:
+        if not checked_path(root, required).is_file():
+            raise ValueError(f'Required release file missing: {required}')
+    paths = [(name, executable_path if name == 'Flash Launch.exe' else checked_path(root, name)) for name in files]
     for name, path in paths:
         if not path.is_file():
             raise ValueError(f'Required release file missing: {name}')
@@ -65,7 +94,7 @@ def package(root=ROOT, architecture='x64', executable=None, output_dir=None):
                 for relative, path in paths:
                     archive.write(path, relative)
             with zipfile.ZipFile(temporary) as archive:
-                if set(archive.namelist()) != set(FILES) or archive.testzip() is not None:
+                if set(archive.namelist()) != set(files) or archive.testzip() is not None:
                     raise ValueError('Archive verification failed')
                 for relative, path in paths:
                     if archive.read(relative) != path.read_bytes():
@@ -74,7 +103,7 @@ def package(root=ROOT, architecture='x64', executable=None, output_dir=None):
     finally:
         if created_staging:
             staging.rmdir()
-    print(f'Verified {len(FILES)} files: {destination.name}')
+    print(f'Verified {len(files)} files: {destination.name}')
     return destination
 
 

@@ -52,6 +52,30 @@ jobs:
         shell: cmd
         run: call build-release.bat --version %VERSION%
 
+      - name: Verify package contents
+        shell: pwsh
+        run: |
+          $root = (Get-Location).Path
+          $expected = @('Flash Launch.exe')
+          foreach ($directory in @('Assets', 'Languages')) {
+            $expected += @(Get-ChildItem $directory -File -Recurse -Force | ForEach-Object {
+              $_.FullName.Substring($root.Length + 1).Replace('\', '/')
+            })
+          }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          foreach ($archivePath in @('FlashLaunch-' + $env:VERSION + '-windows-x64.zip', 'FlashLaunch-' + $env:VERSION + '-windows-x86.zip')) {
+            $archive = [System.IO.Compression.ZipFile]::OpenRead((Join-Path $PWD $archivePath))
+            try {
+              $actual = @($archive.Entries | ForEach-Object { $_.FullName })
+              $missing = @($expected | Where-Object { $_ -notin $actual })
+              if ($missing.Count -gt 0 -or $actual.Count -ne $expected.Count) {
+                throw "Archive $archivePath has incomplete Assets/Languages content. Missing: $($missing -join ', ')"
+              }
+            } finally {
+              $archive.Dispose()
+            }
+          }
+
       - name: Create GitHub release with both architectures
         uses: softprops/action-gh-release@v2
         with:

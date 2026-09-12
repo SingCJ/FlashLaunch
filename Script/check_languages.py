@@ -49,6 +49,12 @@ def check():
             raise ValueError(f'{language}: invalid metadata')
         if set(pack) - {'id', 'name'} != reference_keys:
             raise ValueError(f'{language}: inconsistent translation keys')
+        english_identical = [key for key in reference_keys if pack[key] == key]
+        if len(english_identical) > max(20, len(reference_keys) // 10):
+            raise ValueError(
+                f'{language}: too many untranslated values '
+                f'({len(english_identical)}/{len(reference_keys)})'
+            )
         for key in reference_keys:
             value = pack[key]
             placeholders = lambda text: sorted(re.findall(r'\{[^{}]*\}', text))

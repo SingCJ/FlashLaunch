@@ -35,7 +35,7 @@ checksum = "91622ff5e7162018101f2fea40d6ebf4a78bbe5a49736a2020649edf9693679e"
 
 [[package]]
 name = "flashlaunch"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "meval",
  "rayon",
