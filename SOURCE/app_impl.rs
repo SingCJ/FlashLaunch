@@ -496,7 +496,7 @@ impl AppState {
     pub(crate) fn default_status_text(&self) -> String {
         let hint = localized(
             self.language,
-            "Shift+Enter: Target folder | Ctrl+Home/End: First/Last | Ctrl+PgDn: All",
+            "Shift+(Enter/double-click): Target folder | Ctrl+(Home/End): First/Last | Ctrl+PgDn: All",
         );
         if self.search_running {
             format!(
@@ -7681,7 +7681,7 @@ mod tests {
             "",
             "Đã xong",
             "|Đầu||Cuối|",
-            "Đã xong | Shift+Enter: Thư mục đích",
+            "Đã xong | Shift+(Enter/nhấp đúp): Mở thư mục đích",
         ] {
             let runs = status_text_runs(text);
             assert_eq!(runs.iter().map(|(run, _)| *run).collect::<String>(), text);
@@ -7904,7 +7904,7 @@ mod tests {
         let status = app.default_status_text();
         assert_eq!(
             status,
-            "Done 0 | Shift+Enter: Target folder | Ctrl+Home/End: First/Last | Ctrl+PgDn: All"
+            "Done 0 | Shift+(Enter/double-click): Target folder | Ctrl+(Home/End): First/Last | Ctrl+PgDn: All"
         );
         assert!(!status.contains("streaming"));
     }
@@ -7924,7 +7924,7 @@ mod tests {
         app.search_stage = SearchStage::Folders;
 
         let status = app.default_status_text();
-        assert_eq!(status, "Scanning 12,340 | Shift+Enter: Target folder | Ctrl+Home/End: First/Last | Ctrl+PgDn: All");
+        assert_eq!(status, "Scanning 12,340 | Shift+(Enter/double-click): Target folder | Ctrl+(Home/End): First/Last | Ctrl+PgDn: All");
     }
 
     #[test]
@@ -7940,7 +7940,7 @@ mod tests {
         app.last_search_elapsed = Some(Duration::from_millis(571));
 
         let status = app.default_status_text();
-        assert_eq!(status, "Done 0 | 571 ms | Shift+Enter: Target folder | Ctrl+Home/End: First/Last | Ctrl+PgDn: All");
+        assert_eq!(status, "Done 0 | 571 ms | Shift+(Enter/double-click): Target folder | Ctrl+(Home/End): First/Last | Ctrl+PgDn: All");
     }
 
     #[test]
@@ -7961,7 +7961,7 @@ mod tests {
         let status = app.default_status_text();
         assert_eq!(
             status,
-            "Done 579 | Shift+Enter: Target folder | Ctrl+Home/End: First/Last | Ctrl+PgDn: All"
+            "Done 579 | Shift+(Enter/double-click): Target folder | Ctrl+(Home/End): First/Last | Ctrl+PgDn: All"
         );
     }
 
@@ -7979,7 +7979,7 @@ mod tests {
         let status = app.default_status_text();
         assert_eq!(
             status,
-            "Done 0 | Shift+Enter: Target folder | Ctrl+Home/End: First/Last | Ctrl+PgDn: All"
+            "Done 0 | Shift+(Enter/double-click): Target folder | Ctrl+(Home/End): First/Last | Ctrl+PgDn: All"
         );
         assert!(!status.contains("fallback"));
     }

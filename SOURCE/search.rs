@@ -226,8 +226,8 @@ pub(crate) fn search_bar_help_text(
             localized(language, "Launch the selected or default result."),
         ),
         (
-            "Shift+Enter",
-            localized(language, "Open the selected item's real target folder, not the shortcut folder."),
+            "Shift+Enter / Shift+double-click",
+            localized(language, "Open the target folder."),
         ),
         (
             "Esc",
@@ -6187,7 +6187,7 @@ mod tests {
         assert!(help.contains("Ctrl+Home / Ctrl+End"));
         assert!(help.contains("Select the first / last result."));
         assert!(help.contains("Shift+Enter"));
-        assert!(help.contains("Open the selected item's real target folder, not the shortcut folder."));
+        assert!(help.contains("Open the target folder."));
     }
 
     fn result(title: &str) -> SearchResult {
