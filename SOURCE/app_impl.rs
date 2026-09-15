@@ -3004,7 +3004,10 @@ Reason:
 
     pub(crate) unsafe fn open_selected_target_folder(&mut self) {
         self.clear_pending_launch();
-        let Some(index) = self.selected_index() else {
+        let Some(index) = self
+            .selected_index()
+            .or_else(|| self.default_launch_index())
+        else {
             return;
         };
         let Some(path) = self.result_path(index) else {
@@ -3015,6 +3018,8 @@ Reason:
         } else {
             self.open_result_folder(index);
         }
+        self.prepare_for_hidden_launch();
+        self.hide_launcher();
     }
 
     pub(crate) unsafe fn open_result_folder(&mut self, index: usize) {
