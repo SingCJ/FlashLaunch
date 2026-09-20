@@ -322,14 +322,20 @@ pub(crate) struct LaunchWorker {
 pub(crate) enum ShellWorkerAction {
     Launch,
     OpenFolder,
+    OpenTargetFolder,
     OpenLinkedLocation,
     Properties,
     ContextMenu,
 }
 
 impl ShellWorkerAction {
+    pub(crate) fn is_activation(self) -> bool {
+        matches!(self, Self::Launch | Self::OpenTargetFolder)
+    }
+
     fn operation(self) -> crate::shell_helper::ShellOperation {
         match self {
+            Self::OpenTargetFolder => crate::shell_helper::ShellOperation::OpenTargetFolder,
             Self::Launch => crate::shell_helper::ShellOperation::Launch,
             Self::OpenFolder => crate::shell_helper::ShellOperation::Open,
             Self::OpenLinkedLocation => crate::shell_helper::ShellOperation::OpenLinkedLocation,

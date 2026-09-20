@@ -47,11 +47,12 @@ pub(crate) enum PendingLaunchDecision {
 pub(crate) struct PendingLaunchRequest {
     pub(crate) generation: u64,
     pub(crate) query: String,
+    pub(crate) action: ShellWorkerAction,
 }
 
 impl PendingLaunchRequest {
-    pub(crate) fn new(generation: u64, query: String) -> Self {
-        Self { generation, query }
+    pub(crate) fn new(generation: u64, query: String, action: ShellWorkerAction) -> Self {
+        Self { generation, query, action }
     }
 
     pub(crate) fn decide(
@@ -261,8 +262,23 @@ mod tests {
     use super::*;
 
     #[test]
+    fn pending_folder_action_survives_wait_and_rejects_stale_results() {
+        let request = PendingLaunchRequest::new(7, "query".to_string(), ShellWorkerAction::OpenTargetFolder);
+        assert_eq!(request.decide(7, "query", false, false), PendingLaunchDecision::Wait);
+        assert_eq!(request.decide(8, "query", true, false), PendingLaunchDecision::Clear);
+        assert_eq!(request.decide(7, "other", true, false), PendingLaunchDecision::Clear);
+        assert_eq!(request.decide(7, "query", false, true), PendingLaunchDecision::Clear);
+        assert_eq!(request.decide(7, "query", true, false), PendingLaunchDecision::Launch);
+        assert_eq!(request.action, ShellWorkerAction::OpenTargetFolder);
+        assert!(request.action.is_activation());
+        assert!(ShellWorkerAction::Launch.is_activation());
+        assert!(!ShellWorkerAction::OpenFolder.is_activation());
+        assert!(!ShellWorkerAction::OpenLinkedLocation.is_activation());
+    }
+
+    #[test]
     fn pending_launch_waits_for_matching_results() {
-        let request = PendingLaunchRequest::new(7, "query".to_string());
+        let request = PendingLaunchRequest::new(7, "query".to_string(), ShellWorkerAction::Launch);
 
         assert_eq!(
             request.decide(7, "query", false, false),
@@ -276,7 +292,7 @@ mod tests {
 
     #[test]
     fn pending_launch_clears_after_empty_completion() {
-        let request = PendingLaunchRequest::new(7, "query".to_string());
+        let request = PendingLaunchRequest::new(7, "query".to_string(), ShellWorkerAction::Launch);
 
         assert_eq!(
             request.decide(7, "query", false, true),
@@ -286,7 +302,7 @@ mod tests {
 
     #[test]
     fn pending_launch_rejects_stale_generation_or_query() {
-        let request = PendingLaunchRequest::new(7, "query".to_string());
+        let request = PendingLaunchRequest::new(7, "query".to_string(), ShellWorkerAction::Launch);
 
         assert_eq!(
             request.decide(8, "query", true, false),

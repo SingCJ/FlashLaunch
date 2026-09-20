@@ -39,6 +39,7 @@ pub(crate) enum ShellOperation {
     Launch,
     Open,
     OpenLinkedLocation,
+    OpenTargetFolder,
     Properties,
     ContextMenu,
 }
@@ -51,6 +52,7 @@ impl ShellOperation {
             Self::OpenLinkedLocation => 2,
             Self::Properties => 3,
             Self::ContextMenu => 4,
+            Self::OpenTargetFolder => 5,
         }
     }
 
@@ -61,6 +63,7 @@ impl ShellOperation {
             2 => Some(Self::OpenLinkedLocation),
             3 => Some(Self::Properties),
             4 => Some(Self::ContextMenu),
+            5 => Some(Self::OpenTargetFolder),
             _ => None,
         }
     }
@@ -453,6 +456,13 @@ fn execute_operation(operation: ShellOperation, path: &Path) -> ShellHelperResul
         ShellOperation::Open => shell_explore_path_result(null_mut(), path)
             .map(|_| ShellHelperResult::Success)
             .unwrap_or_else(ShellHelperResult::Error),
+        ShellOperation::OpenTargetFolder => {
+            if is_shortcut_file(path) {
+                return execute_operation(ShellOperation::OpenLinkedLocation, path);
+            }
+            let folder = if path.is_dir() { path } else { path.parent().unwrap_or(path) };
+            execute_operation(ShellOperation::Open, folder)
+        }
         ShellOperation::OpenLinkedLocation => {
             let Some(folder) = linked_target_folder(path) else {
                 return ShellHelperResult::NoLinkedLocation;
@@ -484,6 +494,7 @@ mod tests {
             ShellOperation::Launch,
             ShellOperation::Open,
             ShellOperation::OpenLinkedLocation,
+            ShellOperation::OpenTargetFolder,
             ShellOperation::Properties,
             ShellOperation::ContextMenu,
         ] {

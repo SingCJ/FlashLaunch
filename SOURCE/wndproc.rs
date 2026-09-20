@@ -217,7 +217,7 @@ pub(crate) unsafe extern "system" fn list_subclass_proc(
                 if app.select_result_at_point(x, y).is_none() {
                     return false;
                 }
-                app.open_selected_target_folder();
+                app.launch_selected(ShellWorkerAction::OpenTargetFolder);
                 true
             })
             .unwrap_or(false);
@@ -367,7 +367,7 @@ pub(crate) unsafe extern "system" fn window_proc(
                         }
                     };
                 } else if id == ID_LIST && code == LBN_DBLCLK as u16 {
-                    unsafe { app.launch_selected() };
+                    unsafe { app.launch_selected(ShellWorkerAction::Launch) };
                 } else if id == ID_LIST && code == LBN_SELCHANGE as u16 {
                     unsafe { app.sync_selected_result_from_list() };
                 } else if id == ID_CONFIG_BUTTON && code == BN_CLICKED as u16 {
