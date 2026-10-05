@@ -23,6 +23,7 @@ pub(crate) mod debug_tools;
 pub(crate) mod filesystem_scan;
 pub(crate) mod helper_process;
 pub(crate) mod i18n;
+mod language_picker;
 pub(crate) mod icon_helper;
 pub(crate) mod plugin_worker;
 mod plugins;
@@ -196,6 +197,9 @@ fn run_settings_process(startup_options: &StartupOptions) -> bool {
         }
         let _instance_guard = instance_guard.unwrap();
         let instance = GetModuleHandleW(null());
+        if !language_picker::ensure_startup_language() {
+            return true;
+        }
         let settings = load_app_settings_snapshot();
         let language = settings.language;
         set_active_language(language);
@@ -345,6 +349,9 @@ fn main() {
             return;
         }
         let _instance_guard = instance_guard.unwrap();
+        if !language_picker::ensure_startup_language() {
+            return;
+        }
         let startup_settings = load_app_settings_snapshot();
         let window_settings = startup_settings.window;
         let startup_language = startup_settings.language;
