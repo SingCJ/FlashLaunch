@@ -5809,7 +5809,7 @@ Reason:
         );
         self.show_config_id(ID_CFG_CHECK_UPDATE, true);
         MoveWindow(GetDlgItem(self.config_hwnd, ID_CFG_CHECK_UPDATE), right_x,
-            page_bottom - button_h * 2 - 8, right_w.min(240), button_h, TRUE);
+            page_bottom - button_h * 2 - 8, SETTINGS_ACTION_BUTTON_WIDTH, button_h, TRUE);
         MoveWindow(
             GetDlgItem(self.config_hwnd, ID_CFG_GENERAL_RESET),
             right_x,
