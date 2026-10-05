@@ -115,6 +115,10 @@ pub(crate) unsafe fn track_tray_menu(hwnd: HWND, language: AppLanguage) -> usize
         ID_TRAY_CONFIG,
         wide(localized(language, "Settings")).as_ptr(),
     );
+    AppendMenuW(menu, MF_STRING | if crate::updater::busy() { MF_GRAYED } else { 0 },
+        ID_TRAY_CHECK_UPDATE, wide(crate::updater::label(language)).as_ptr());
+    AppendMenuW(menu, MF_STRING | if crate::autostart::is_enabled() { MF_CHECKED } else { 0 },
+        ID_TRAY_AUTOSTART, wide(localized(language, "Start with Windows")).as_ptr());
     AppendMenuW(menu, MF_SEPARATOR, 0, null());
     AppendMenuW(
         menu,
@@ -144,6 +148,14 @@ pub(crate) unsafe fn execute_tray_menu_command(app: &mut AppState, command: usiz
     match command {
         ID_TRAY_SHOW_HIDE => app.toggle_launcher(),
         ID_TRAY_CONFIG => app.show_config_window(),
+        ID_TRAY_CHECK_UPDATE => crate::updater::start(app.hwnd, app.language, true),
+        ID_TRAY_AUTOSTART => {
+            if let Err(error) = crate::autostart::set_enabled(!crate::autostart::is_enabled()) {
+                show_error(app.hwnd, &format!("{}\n{}", localized(app.language, "Could not change startup setting."), error));
+            }
+            let settings = FindWindowW(wide(CONFIG_CLASS_NAME).as_ptr(), null());
+            if !settings.is_null() { PostMessageW(settings, WM_AUTOSTART_CHANGED, 0, 0); }
+        },
         ID_TRAY_QUIT => {
             FLASH_LAUNCH_SHUTDOWN_REQUESTED.store(true, Ordering::Release);
             force_shutdown_settings_process();

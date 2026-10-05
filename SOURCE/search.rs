@@ -109,11 +109,12 @@ pub(crate) fn handle_key_message(message: &mut MSG) -> bool {
 
         match message.wParam as u16 {
             VK_RETURN => {
-                if GetKeyState(VK_SHIFT as i32) < 0 {
-                    app.open_selected_target_folder();
+                let action = if GetKeyState(VK_SHIFT as i32) < 0 {
+                    ShellWorkerAction::OpenTargetFolder
                 } else {
-                    app.launch_selected();
-                }
+                    ShellWorkerAction::Launch
+                };
+                app.launch_selected(action);
                 true
             }
             VK_ESCAPE => {
@@ -151,7 +152,7 @@ pub(crate) fn handle_key_message(message: &mut MSG) -> bool {
                 true
             }
             key if (VK_F1..=VK_F1 + 8).contains(&key) => {
-                app.launch_result((key - VK_F1) as usize, true);
+                app.launch_result((key - VK_F1) as usize, true, ShellWorkerAction::Launch);
                 true
             }
             key => {

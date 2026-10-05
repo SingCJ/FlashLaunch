@@ -2,13 +2,26 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-use crate::{app_dir, create_shortcut_with_shell_link, resolve_shortcut_target};
+use crate::{ create_shortcut_with_shell_link, resolve_shortcut_target};
 
 const SHORTCUT_NAME: &str = "Flash Launch.lnk";
 
 pub(crate) fn startup_folder() -> Result<PathBuf, String> {
-    let appdata = env::var_os("APPDATA").ok_or_else(|| "APPDATA is unavailable.".to_string())?;
-    Ok(PathBuf::from(appdata).join("Microsoft\\Windows\\Start Menu\\Programs\\Startup"))
+    use std::os::windows::ffi::OsStringExt;
+    use windows_sys::Win32::System::Com::CoTaskMemFree;
+    use windows_sys::Win32::UI::Shell::{SHGetKnownFolderPath, FOLDERID_Startup};
+    unsafe {
+        let mut path = std::ptr::null_mut();
+        let result = SHGetKnownFolderPath(&FOLDERID_Startup, 0, std::ptr::null_mut(), &mut path);
+        if result < 0 || path.is_null() {
+            return Err(format!("Could not resolve Startup folder: 0x{:08X}", result as u32));
+        }
+        let mut length = 0;
+        while *path.add(length) != 0 { length += 1; }
+        let folder = PathBuf::from(std::ffi::OsString::from_wide(std::slice::from_raw_parts(path, length)));
+        CoTaskMemFree(path as _);
+        Ok(folder)
+    }
 }
 
 pub(crate) fn shortcut_path() -> Result<PathBuf, String> {
@@ -38,6 +51,6 @@ pub(crate) fn set_enabled(enabled: bool) -> Result<(), String> {
     Ok(())
 }
 
-fn normalize(path: &std::path::Path) -> PathBuf {
-    fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+fn normalize(path: &std::path::Path) -> String {
+    crate::fold_text(&fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf()).to_string_lossy())
 }

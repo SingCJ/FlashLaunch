@@ -2393,8 +2393,8 @@ impl AppState {
         match decision {
             PendingLaunchDecision::Wait => false,
             PendingLaunchDecision::Launch => {
-                self.clear_pending_launch();
-                self.launch_result(0, true);
+                let action = self.pending_launch.take().expect("Pending action exists").action;
+                self.launch_result(0, true, action);
                 true
             }
             PendingLaunchDecision::Clear => {
@@ -2404,7 +2404,7 @@ impl AppState {
         }
     }
 
-    pub(crate) unsafe fn launch_selected(&mut self) {
+    pub(crate) unsafe fn launch_selected(&mut self, action: ShellWorkerAction) {
         let query = get_window_text(self.edit);
         if self.last_search_query == query && !self.search_running {
             let Some(index) = self
@@ -2415,7 +2415,7 @@ impl AppState {
                 return;
             };
             self.clear_pending_launch();
-            self.launch_result(index, true);
+            self.launch_result(index, true, action);
             return;
         }
 
@@ -2427,11 +2427,12 @@ impl AppState {
             self.pending_launch = Some(PendingLaunchRequest::new(
                 self.search_generation,
                 self.last_search_query.clone(),
+                action,
             ));
         }
     }
 
-    pub(crate) unsafe fn launch_result(&mut self, index: usize, hide_after_launch: bool) {
+    pub(crate) unsafe fn launch_result(&mut self, index: usize, hide_after_launch: bool, action: ShellWorkerAction) {
         let Some(result) = self.result_at(index) else {
             return;
         };
@@ -2439,7 +2440,7 @@ impl AppState {
         match result.target {
             LaunchTarget::Path(path) => {
                 self.enqueue_launch_request(LaunchWorkerRequest {
-                    action: ShellWorkerAction::Launch,
+                    action,
                     session_generation: self.helper_session_generation,
                     generation: self.search_generation,
                     hwnd_value: self.hwnd as isize,
@@ -2453,6 +2454,9 @@ impl AppState {
                 }
             }
             LaunchTarget::Plugin(target) => {
+                if action != ShellWorkerAction::Launch {
+                    return;
+                }
                 let alias = self
                     .plugin_state
                     .alias_for(&target.plugin_id)
@@ -2564,13 +2568,13 @@ impl AppState {
             results.append(&mut *pending);
         }
         for result in results {
-            if result.action != ShellWorkerAction::Launch
+            if !result.action.is_activation()
                 && result.generation != self.search_generation
             {
                 continue;
             }
             match result.kind {
-                LaunchWorkerResultKind::Launched if result.action == ShellWorkerAction::Launch => {
+                LaunchWorkerResultKind::Launched if result.action.is_activation() => {
                     if record_query_launch_rule_in_memory(
                         &mut self.query_launch_rules,
                         &result.launched_query,
@@ -2632,13 +2636,13 @@ impl AppState {
                 LaunchWorkerResultKind::HelperError(error) => {
                     if result.session_generation == self.helper_session_generation {
                         self.show_helper_error_once("Shell", &error);
-                        if result.action == ShellWorkerAction::Launch {
+                        if result.action.is_activation() {
                             self.show_launcher();
                         }
                     }
                 }
                 LaunchWorkerResultKind::Error(error) => {
-                    if result.action == ShellWorkerAction::Launch {
+                    if result.action.is_activation() {
                         self.show_launch_error(&result.title, &result.path, &error);
                     } else {
                         show_error(
@@ -2985,8 +2989,8 @@ Reason:
             return;
         }
         match command {
-            ID_RESULT_OPEN => self.launch_result(index, true),
-            ID_RESULT_OPEN_KEEP => self.launch_result(index, false),
+            ID_RESULT_OPEN => self.launch_result(index, true, ShellWorkerAction::Launch),
+            ID_RESULT_OPEN_KEEP => self.launch_result(index, false, ShellWorkerAction::Launch),
             ID_RESULT_OPEN_FOLDER => self.open_result_folder(index),
             ID_RESULT_EXPLORE_LINKED_LOCATION => self.open_result_linked_location(index),
             ID_RESULT_PROPERTIES => self.open_result_properties(index),
@@ -3000,26 +3004,6 @@ Reason:
             ID_RESULT_SETTINGS => self.show_config_window(),
             _ => {}
         }
-    }
-
-    pub(crate) unsafe fn open_selected_target_folder(&mut self) {
-        self.clear_pending_launch();
-        let Some(index) = self
-            .selected_index()
-            .or_else(|| self.default_launch_index())
-        else {
-            return;
-        };
-        let Some(path) = self.result_path(index) else {
-            return;
-        };
-        if is_shortcut_file(&path) {
-            self.open_result_linked_location(index);
-        } else {
-            self.open_result_folder(index);
-        }
-        self.prepare_for_hidden_launch();
-        self.hide_launcher();
     }
 
     pub(crate) unsafe fn open_result_folder(&mut self, index: usize) {
@@ -4463,6 +4447,10 @@ Reason:
             self.instance,
             null(),
         );
+        CreateWindowExW(0, button_class.as_ptr(),
+            wide(localized(self.language, "Check for updates")).as_ptr(),
+            WS_CHILD | WS_TABSTOP | BS_PUSHBUTTON as u32, 0, 0, 0, 0,
+            self.config_hwnd, ID_CFG_CHECK_UPDATE as isize as _, self.instance, null());
         self.cfg_autostart = CreateWindowExW(
             0,
             button_class.as_ptr(),
@@ -4688,6 +4676,7 @@ Reason:
             self.cfg_show_build_timestamp_in_title,
             self.cfg_autostart,
             GetDlgItem(self.config_hwnd, ID_CFG_GENERAL_RESET),
+            GetDlgItem(self.config_hwnd, ID_CFG_CHECK_UPDATE),
             GetDlgItem(self.config_hwnd, ID_CFG_INDEX_LABEL),
             self.cfg_index,
             self.cfg_modifier_help_button,
@@ -5396,6 +5385,7 @@ Reason:
             self.show_config_hwnd(hwnd, false);
         }
 
+        self.show_config_id(ID_CFG_CHECK_UPDATE, false);
         for (id, _) in action_buttons {
             let child = GetDlgItem(self.config_hwnd, id);
             self.show_config_hwnd(child, true);
@@ -5817,6 +5807,9 @@ Reason:
             label_h + 4,
             TRUE,
         );
+        self.show_config_id(ID_CFG_CHECK_UPDATE, true);
+        MoveWindow(GetDlgItem(self.config_hwnd, ID_CFG_CHECK_UPDATE), right_x,
+            page_bottom - button_h * 2 - 8, right_w.min(240), button_h, TRUE);
         MoveWindow(
             GetDlgItem(self.config_hwnd, ID_CFG_GENERAL_RESET),
             right_x,
@@ -6309,6 +6302,7 @@ Reason:
             self.cfg_show_build_timestamp_in_title,
             localized(self.language, "Show build timestamp in window title"),
         );
+        set_window_text(GetDlgItem(self.config_hwnd, ID_CFG_CHECK_UPDATE), crate::updater::label(self.language));
         set_window_text(self.cfg_autostart, localized(self.language, "Start with Windows"));
         set_window_text(
             GetDlgItem(self.config_hwnd, ID_CFG_GENERAL_RESET),
@@ -7989,5 +7983,3 @@ mod tests {
         assert!(!status.contains("fallback"));
     }
 }
-
-

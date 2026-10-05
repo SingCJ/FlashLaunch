@@ -214,3 +214,17 @@ pub(crate) const IID_I_DROP_SOURCE: GUID = GUID::from_u128(0x00000121_0000_0000_
 pub(crate) const IID_I_UNKNOWN: GUID = GUID::from_u128(0x00000000_0000_0000_c000_000000000046);
 pub(crate) const IID_I_PERSIST_FILE: GUID = GUID::from_u128(0x0000010b_0000_0000_c000_000000000046);
 pub(crate) const IID_I_SHELL_LINK_W: GUID = GUID::from_u128(0x000214f9_0000_0000_c000_000000000046);
+
+pub(crate) const ID_CFG_CHECK_UPDATE: i32 = 2079;
+pub(crate) const ID_TRAY_CHECK_UPDATE: usize = 3005;
+pub(crate) const ID_TRAY_AUTOSTART: usize = 3006;
+pub(crate) const WM_UPDATE_READY: u32 = WM_APP + 20;
+
+pub(crate) const WM_CHECK_UPDATE_REQUEST: u32 = WM_APP + 21;
+
+pub(crate) const UPDATE_TIMER_ID: usize = 6;
+pub(crate) const WM_UPDATE_SETTINGS_STATE: u32 = WM_APP + 22;
+
+pub(crate) const WM_AUTOSTART_CHANGED: u32 = WM_APP + 23;
+
+pub(crate) const WM_UPDATE_UI_STATE: u32 = WM_APP + 24;

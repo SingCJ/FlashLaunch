@@ -12,6 +12,14 @@ The release is for Windows. No Rust or Python installation is required to run it
 
 Open Settings from the notification-area icon to configure search folders, language, hotkey, and ranking. Click **Save + Apply** to save changes. If your keyboard has no Pause key, use the notification-area icon to open Settings and choose another shortcut.
 
+## Updates and startup
+
+Flash Launch checks the latest stable GitHub release in the background at startup. It asks before downloading or installing a newer version. You can also select **Check for updates** in General Settings or the notification-area menu. Manual checks report when the current version is up to date or the request fails; startup checks stay quiet in those cases.
+
+Updates use the matching Windows architecture, verify the archive checksum when GitHub provides one, and preserve personal configuration and history. The previous executable and replaced resources are backed up under `BACKUP` before installation. Save or discard pending settings before updating; canceling the save prompt cancels the update. The app restarts after a successful installation.
+
+**Start with Windows** is available in Settings and as a checked notification-area menu option. Its state reflects the current user's Startup shortcut, including whether it points to this executable.
+
 ## Screenshots
 
 <p>

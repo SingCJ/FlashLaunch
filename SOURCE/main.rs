@@ -38,6 +38,7 @@ pub(crate) mod shell_context_menu;
 pub(crate) mod shell_helper;
 pub(crate) mod startup_options;
 pub(crate) mod autostart;
+pub(crate) mod updater;
 pub(crate) mod state;
 pub(crate) mod tray;
 pub(crate) mod types;
@@ -598,6 +599,7 @@ fn main() {
                 app.begin_helper_focus_session();
             });
         }
+        updater::start(hwnd, startup_language, false);
         let mut message: MSG = std::mem::zeroed();
         while GetMessageW(&mut message, null_mut(), 0, 0) > 0 {
             if handle_key_message(&mut message) {

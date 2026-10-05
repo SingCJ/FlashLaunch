@@ -464,7 +464,9 @@ fn read_hydrated_settings_text() -> String {
 
 pub(crate) fn load_app_settings_snapshot() -> AppSettingsSnapshot {
     let content = read_hydrated_settings_text();
-    parse_app_settings_snapshot(&content)
+    let mut snapshot = parse_app_settings_snapshot(&content);
+    snapshot.autostart = crate::autostart::is_enabled();
+    snapshot
 }
 
 fn setting_value<'a>(content: &'a str, canonical_key: &str) -> Option<&'a str> {

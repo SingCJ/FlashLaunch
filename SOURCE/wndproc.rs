@@ -217,7 +217,7 @@ pub(crate) unsafe extern "system" fn list_subclass_proc(
                 if app.select_result_at_point(x, y).is_none() {
                     return false;
                 }
-                app.open_selected_target_folder();
+                app.launch_selected(ShellWorkerAction::OpenTargetFolder);
                 true
             })
             .unwrap_or(false);
@@ -367,7 +367,7 @@ pub(crate) unsafe extern "system" fn window_proc(
                         }
                     };
                 } else if id == ID_LIST && code == LBN_DBLCLK as u16 {
-                    unsafe { app.launch_selected() };
+                    unsafe { app.launch_selected(ShellWorkerAction::Launch) };
                 } else if id == ID_LIST && code == LBN_SELCHANGE as u16 {
                     unsafe { app.sync_selected_result_from_list() };
                 } else if id == ID_CONFIG_BUTTON && code == BN_CLICKED as u16 {
@@ -515,8 +515,19 @@ pub(crate) unsafe extern "system" fn window_proc(
             });
             0
         }
+        WM_CHECK_UPDATE_REQUEST => {
+            crate::updater::start(hwnd, language_from_index(wparam), true);
+            0
+        }
+        WM_UPDATE_READY => {
+            crate::updater::handle_ready(hwnd);
+            0
+        }
         WM_TIMER => {
-            if wparam == TITLE_TIMER_ID {
+            if wparam == UPDATE_TIMER_ID {
+                crate::updater::poll(hwnd);
+                0
+            } else if wparam == TITLE_TIMER_ID {
                 with_app(|app| {
                     set_window_text(
                         hwnd,
@@ -695,6 +706,25 @@ pub(crate) unsafe extern "system" fn config_window_proc(
     lparam: LPARAM,
 ) -> LRESULT {
     match message {
+        WM_UPDATE_READY => {
+            crate::updater::handle_ready(hwnd);
+            0
+        }
+        WM_AUTOSTART_CHANGED => {
+            with_app(|app| {
+                let enabled = crate::autostart::is_enabled();
+                SendMessageW(app.cfg_autostart, BM_SETCHECK, if enabled { BST_CHECKED as usize } else { 0 }, 0);
+                if let Some(snapshot) = app.config_snapshot.as_mut() { snapshot.autostart = enabled; }
+            });
+            0
+        }
+        WM_UPDATE_UI_STATE => {
+            with_app(|app| crate::updater::sync_ui(hwnd, app.language, wparam));
+            0
+        }
+        WM_UPDATE_SETTINGS_STATE => {
+            with_app(|app| if app.config_save_in_progress && app.config_close_after_save { 2 } else { 0 }).unwrap_or(0)
+        }
         WM_SETTINGS_SHOW_PAGE => {
             with_app(|app| unsafe {
                 if wparam != usize::MAX {
@@ -721,6 +751,12 @@ pub(crate) unsafe extern "system" fn config_window_proc(
         },
         WM_COMMAND => {
             let id = loword(wparam) as i32;
+            if id == ID_CFG_CHECK_UPDATE {
+                let language = with_app(|app| app.language).unwrap_or_else(default_language);
+                crate::updater::start(hwnd, language, true);
+                return 0;
+            }
+
             let code = hiword(wparam);
             with_app(|app| {
                 if id == ID_CFG_HOTKEY && code == EN_SETFOCUS as u16 {
