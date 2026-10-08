@@ -11,7 +11,9 @@ use windows_sys::Win32::UI::WindowsAndMessaging::*;
 use crate::*;
 
 struct PickerState {
+    filter: HWND,
     list: HWND,
+    visible_languages: Vec<AppLanguage>,
     ok: HWND,
     selection: Option<AppLanguage>,
     closed: bool,
@@ -24,17 +26,56 @@ unsafe fn layout_picker(hwnd: HWND, state: &PickerState) {
     let pad = scale(12);
     let button_w = scale(88);
     let button_h = scale(30);
-    MoveWindow(state.list, pad, pad, (rect.right - pad * 2).max(1),
-        (rect.bottom - pad * 3 - button_h).max(1), TRUE);
+    let filter_h = scale(28);
+    let list_top = pad * 2 + filter_h;
+    MoveWindow(state.filter, pad, pad, (rect.right - pad * 2).max(1), filter_h, TRUE);
+    SendMessageW(state.list, LB_SETITEMHEIGHT, 0, scale(28) as isize);
+    MoveWindow(state.list, pad, list_top, (rect.right - pad * 2).max(1),
+        (rect.bottom - list_top - pad * 2 - button_h).max(1), TRUE);
     MoveWindow(state.ok, (rect.right - pad - button_w).max(pad),
         (rect.bottom - pad - button_h).max(pad), button_w, button_h, TRUE);
-    SendMessageW(state.list, LB_SETITEMHEIGHT, 0, scale(28) as isize);
+    ShowScrollBar(state.list, SB_VERT, TRUE);
+}
+
+fn language_matches_filter(name: &str, id: &str, query: &str) -> bool {
+    let query = fold_text(query);
+    fold_text(name).contains(&query) || fold_text(id).contains(&query)
+}
+
+unsafe fn refresh_languages(state: &mut PickerState) {
+    let previous = SendMessageW(state.list, LB_GETCURSEL, 0, 0);
+    let selected = state.visible_languages.get(previous as usize).copied();
+    let len = GetWindowTextLengthW(state.filter).max(0) as usize;
+    let mut text = vec![0u16; len + 1];
+    let copied = GetWindowTextW(state.filter, text.as_mut_ptr(), text.len() as i32);
+    let query = String::from_utf16_lossy(&text[..copied.max(0) as usize]);
+    SendMessageW(state.list, WM_SETREDRAW, 0, 0);
+    SendMessageW(state.list, LB_RESETCONTENT, 0, 0);
+    state.visible_languages.clear();
+    for index in 0..=language_packs().len() {
+        let language = language_from_index(index);
+        let pack = language_pack(language);
+        let name = pack.map(|pack| pack.name).unwrap_or(BUILTIN_ENGLISH_NAME);
+        if language_matches_filter(name, language.setting_value(), &query) {
+            SendMessageW(state.list, LB_ADDSTRING, 0, wide(name).as_ptr() as isize);
+            state.visible_languages.push(language);
+        }
+    }
+    let index = selected.and_then(|language| state.visible_languages.iter().position(|entry| *entry == language))
+        .unwrap_or(0);
+    if !state.visible_languages.is_empty() {
+        SendMessageW(state.list, LB_SETCURSEL, index, 0);
+    }
+    EnableWindow(state.ok, if state.visible_languages.is_empty() { FALSE } else { TRUE });
+    SendMessageW(state.list, WM_SETREDRAW, 1, 0);
+    ShowScrollBar(state.list, SB_VERT, TRUE);
+    InvalidateRect(state.list, null(), TRUE);
 }
 
 unsafe fn confirm_selection(hwnd: HWND, state: &mut PickerState) {
     let index = SendMessageW(state.list, LB_GETCURSEL, 0, 0) as i32;
     if index < 0 { return; }
-    let language = AppLanguage::from_combo_index(index);
+    let Some(language) = state.visible_languages.get(index as usize).copied() else { return; };
     let name = language_pack(language).map(|pack| pack.name).unwrap_or(BUILTIN_ENGLISH_NAME);
     let message = localized_format1(language, "Use {} as the application language?", name);
     let answer = MessageBoxW(hwnd, wide(&message).as_ptr(),
@@ -56,6 +97,10 @@ unsafe extern "system" fn picker_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lpar
     let state = get_window_long(hwnd, GWLP_USERDATA) as *mut PickerState;
     if !state.is_null() {
         match msg {
+            WM_COMMAND if wparam & 0xffff == 1002 && (wparam >> 16) == EN_CHANGE as usize => {
+                refresh_languages(&mut *state);
+                return 0;
+            }
             WM_COMMAND if wparam & 0xffff == IDOK as usize && (wparam >> 16) == BN_CLICKED as usize => {
                 confirm_selection(hwnd, &mut *state);
                 return 0;
@@ -126,14 +171,14 @@ pub(crate) unsafe fn ensure_startup_language() -> bool {
     let dpi = GetDpiForSystem().max(96);
     let scale = |value: i32| value * dpi as i32 / 96;
     let style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME;
-    let mut bounds = RECT { left: 0, top: 0, right: scale(340), bottom: scale(count.min(12) as i32 * 28 + 66) };
+    let mut bounds = RECT { left: 0, top: 0, right: scale(340), bottom: scale(count.min(12) as i32 * 28 + 106) };
     AdjustWindowRectExForDpi(&mut bounds, style, FALSE, WS_EX_DLGMODALFRAME, dpi);
     let width = bounds.right - bounds.left;
     let height = bounds.bottom - bounds.top;
     let work = info.rcWork;
-    let mut state = PickerState { list: null_mut(), ok: null_mut(), selection: None, closed: false };
+    let mut state = PickerState { filter: null_mut(), list: null_mut(), visible_languages: Vec::new(), ok: null_mut(), selection: None, closed: false };
     let hwnd = CreateWindowExW(
-        WS_EX_DLGMODALFRAME, class.as_ptr(), wide("").as_ptr(),
+        WS_EX_DLGMODALFRAME, class.as_ptr(), wide(&format!("{} {}", APP_NAME, APP_VERSION)).as_ptr(),
         style, work.left + (work.right - work.left - width) / 2,
         work.top + (work.bottom - work.top - height) / 2, width, height,
         null_mut(), null_mut(), instance, &mut state as *mut _ as *mut _,
@@ -144,7 +189,7 @@ pub(crate) unsafe fn ensure_startup_language() -> bool {
     }
     state.list = CreateWindowExW(
         0, wide("LISTBOX").as_ptr(), wide("").as_ptr(),
-        WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_VSCROLL | LBS_NOTIFY as u32 | LBS_NOINTEGRALHEIGHT as u32,
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_VSCROLL | LBS_NOTIFY as u32 | LBS_NOINTEGRALHEIGHT as u32 | LBS_DISABLENOSCROLL as u32,
         8, 8, width - 18, height - 18, hwnd, 1001 as HMENU, instance, null(),
     );
     if state.list.is_null() {
@@ -160,17 +205,23 @@ pub(crate) unsafe fn ensure_startup_language() -> bool {
         UnregisterClassW(class.as_ptr(), instance);
         return false;
     }
+    state.filter = CreateWindowExW(WS_EX_CLIENTEDGE, wide("EDIT").as_ptr(), wide("").as_ptr(),
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL as u32,
+        0, 0, 0, 0, hwnd, 1002 as HMENU, instance, null());
+    if state.filter.is_null() {
+        DestroyWindow(hwnd);
+        UnregisterClassW(class.as_ptr(), instance);
+        return false;
+    }
+    SendMessageW(state.filter, WM_SETFONT, GetStockObject(DEFAULT_GUI_FONT) as usize, 1);
+    SendMessageW(state.filter, EM_SETCUEBANNER, 1, wide("Filter languages...").as_ptr() as isize);
     SendMessageW(state.ok, WM_SETFONT, GetStockObject(DEFAULT_GUI_FONT) as usize, 1);
     SendMessageW(state.list, WM_SETFONT, GetStockObject(DEFAULT_GUI_FONT) as usize, 1);
-    SendMessageW(state.list, LB_ADDSTRING, 0, wide(BUILTIN_ENGLISH_NAME).as_ptr() as isize);
-    for pack in language_packs() {
-        SendMessageW(state.list, LB_ADDSTRING, 0, wide(pack.name).as_ptr() as isize);
-    }
-    SendMessageW(state.list, LB_SETCURSEL, 0, 0);
+    refresh_languages(&mut state);
     layout_picker(hwnd, &state);
     ShowWindow(hwnd, SW_SHOW);
     SetForegroundWindow(hwnd);
-    SetFocus(state.list);
+    SetFocus(state.filter);
     let mut msg: MSG = std::mem::zeroed();
     while !state.closed && GetMessageW(&mut msg, null_mut(), 0, 0) > 0 {
         if msg.message == WM_KEYDOWN && msg.wParam == VK_ESCAPE as usize {
@@ -188,4 +239,17 @@ pub(crate) unsafe fn ensure_startup_language() -> bool {
     UnregisterClassW(class.as_ptr(), instance);
     let Some(language) = state.selection else { return false; };
     update_setting_lines(&[("language", language.setting_value().to_string())]).is_ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn language_filter_matches_names_and_ids_without_case_or_accents() {
+        assert!(language_matches_filter("Ti\u{1ebf}ng Vi\u{1ec7}t", "vi", "TIENG VIET"));
+        assert!(language_matches_filter("Ti\u{1ebf}ng Vi\u{1ec7}t", "vi", "VI"));
+        assert!(language_matches_filter("English", "en", ""));
+        assert!(!language_matches_filter("English", "en", "vietnamese"));
+    }
 }
